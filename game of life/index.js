@@ -5,7 +5,7 @@ const c=canvas.getContext('2d');
 canvas.width=window.innerWidth;
 canvas.height=window.innerHeight;
 
-c.fillStyle=("#000000");
+c.fillStyle=("white");
 c.fillRect(20,20,20,20);
 
 
@@ -192,8 +192,8 @@ class World{
 
 }
 
-//let world=new World(80,45);
-let world=new World(320,160);
+let world=new World(80,45);
+//let world=new World(320,160);
 console.log()
 world.populate();
 world.initRender();
@@ -217,12 +217,20 @@ const mouse = {
     x: undefined,
     y: undefined
 }
+let mouseCon=false;
+addEventListener('mousedown',event=>{
+    mouseCon=true;
+})
+addEventListener("mouseup",event=>{
+    mouseCon=false;
+})
 // Event Listeners
-addEventListener('mousemove', event => {
+addEventListener("mousemove", event => {
+    if(mouseCon){
     mouse.x = Math.floor(event.clientX/world.blockWidth);
     mouse.y = Math.floor(event.clientY/world.blockHeight);
     console.log(mouse.x+" "+mouse.y);
     world.gridArray[mouse.x][mouse.y].birth();
     world.paintCell(mouse.x,mouse.y,"green");
-  //  world.activateCell(mouse.x,mouse.y);
+    }
 })
