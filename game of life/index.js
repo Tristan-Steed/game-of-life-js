@@ -15,13 +15,16 @@ class Cell{
         this.y=y;
         this.alive=alive;
         this.neighbours=0;
+        this.deathAge = 0; // Track how many cycles since death
     }
     birth=()=>{
         this.alive=true;
+        this.deathAge = 0;
         console.log("birth @: ("+this.x+","+this.y+")");
     }
     death=()=>{
         this.alive=false;
+        this.deathAge = 1; // Start counting cycles since death
         console.log("death @: ("+this.x+","+this.y+")");
     }
     isAlive(){
@@ -33,29 +36,26 @@ class Cell{
     getNeighbours(){
         return this.neighbours;
     }
+    incrementDeathAge() {
+        if (!this.alive) {
+            this.deathAge++;
+        }
+    }
+    getDeathAge() {
+        return this.deathAge;
+    }
 }
 
 class World{
 
     constructor(rows,columns){
-
         this.rows=rows;
         this.columns=columns;
-        this.blockWidth=canvas.width/rows;
-        this.blockHeight=canvas.height/columns;
+        this.blockWidth=Math.ceil(canvas.width/rows);
+        this.blockHeight=Math.ceil(canvas.height/columns);
         this.gridArray=[];
-        this.whiteCellBuffer=[];
-        this.greenCellBuffer=[];
-
-        for(let i=0;i<canvas.width;i+=this.blockWidth){
-            for(let j=0;j<canvas.height;j+=this.blockHeight){
-                c.fillStyle=("black");
-                c.fillRect(i,j,this.blockWidth,this.blockHeight);
-                c.fillStyle=("white");
-                c.fillRect(i,j,this.blockWidth,this.blockHeight-1);
-
-            }
-        }
+        this.cellBuffer=[]; // Single buffer for all cell updates
+        this.previousState = null;
     }
 
     activateCell(x,y){
@@ -90,98 +90,149 @@ class World{
     }
 
     paintCell(x,y,color){
-        c.clearRect(x*this.blockWidth,y*this.blockHeight,this.blockWidth,this.blockHeight);
-        //c.fillStyle="black";
+        // Clear the cell area
+        c.fillStyle="black";
         c.fillRect(x*this.blockWidth,y*this.blockHeight,this.blockWidth,this.blockHeight);
+        
+        // Draw the circle
         c.fillStyle=color;
-        c.fillRect(x*this.blockWidth,y*this.blockHeight,this.blockWidth,this.blockHeight);
+        const centerX = x*this.blockWidth + this.blockWidth/2;
+        const centerY = y*this.blockHeight + this.blockHeight/2;
+        const radius = Math.min(this.blockWidth, this.blockHeight) * 0.4; // 80% of the smaller dimension
+        c.beginPath();
+        c.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        c.fill();
     }
 
     checkLiveNeighbours(x,y){
         let count=0;
-        try{
-            if(this.gridArray[x+1][y+1].isAlive()) {//upper right corner cell
-                count+=1;}
-            if(this.gridArray[x+1][y].isAlive()){//right cell
-                count+=1;
-            } 
-            if(this.gridArray[x-1][y].isAlive()){//left cell
-                count+=1;
+        
+        // Helper function to handle wrapping
+        const wrap = (val, max) => {
+            if (val < 0) return max - 1;
+            if (val >= max) return 0;
+            return val;
+        };
+
+        // Check all 8 neighbors with wrapping
+        const neighbors = [
+            [x+1, y+1], [x+1, y], [x+1, y-1],  // right side
+            [x, y+1], [x, y-1],                 // top and bottom
+            [x-1, y+1], [x-1, y], [x-1, y-1]   // left side
+        ];
+
+        for (let [nx, ny] of neighbors) {
+            // Wrap coordinates
+            const wrappedX = wrap(nx, this.rows);
+            const wrappedY = wrap(ny, this.columns);
+            
+            if (this.gridArray[wrappedX][wrappedY].isAlive()) {
+                count++;
             }
-            if(this.gridArray[x-1][y+1].isAlive()){//upper left corner cell
-                count+=1;
-            }
-            if(this.gridArray[x][y+1].isAlive()){//top cell
-                count+=1;
-            }
-            if(this.gridArray[x][y-1].isAlive()){//bottom cell
-                count+=1;
-            }
-            if(this.gridArray[x-1][y-1].isAlive()){//bottom left corner
-                count+=1;
-            }
-            if(this.gridArray[x+1][y-1].isAlive()){//bottom right corner
-                count+=1;
-            }}
-            catch(e){
-                //console.log(e);
-                count+=0;
-            }
-            this.gridArray[x][y].setNeighbours(count);
-           // console.log("the count is: "+x+" "+y+" "+count);
+        }
+
+        this.gridArray[x][y].setNeighbours(count);
     }
 
     scanGrid(){
-        for(let i =0;i<this.rows;i++){
-            for(let j=0;j<this.columns;j++){
-                          this.checkLiveNeighbours(i,j);
-             }
-        }
-    }
-    tick(){
-        for(let i =0;i<this.rows;i++){
-            for(let j=0;j<this.columns;j++){
-                let currentCell=this.gridArray[i][j];
-                if(currentCell.getNeighbours()>3 || currentCell.getNeighbours()<2) {
-                    if(currentCell.isAlive()){
-                        currentCell.death();
-                        this.whiteCellBuffer.push([i,j]);
-                        console.log(this.whiteCellBuffer);
+        // Only scan cells that are alive or adjacent to alive cells
+        const cellsToScan = new Set();
+        
+        // First pass: find all cells that need to be scanned
+        for(let i = 0; i < this.rows; i++){
+            for(let j = 0; j < this.columns; j++){
+                if(this.gridArray[i][j].isAlive()) {
+                    // Add the cell and its neighbors to the scan set
+                    for(let di = -1; di <= 1; di++) {
+                        for(let dj = -1; dj <= 1; dj++) {
+                            const ni = (i + di + this.rows) % this.rows;
+                            const nj = (j + dj + this.columns) % this.columns;
+                            cellsToScan.add(`${ni},${nj}`);
+                        }
                     }
-                }else if(currentCell.getNeighbours()==3){ 
-                    if(!currentCell.isAlive()){
-                    currentCell.birth();
-                    this.greenCellBuffer.push([i,j]);}
                 }
-                       
-             }
+            }
+        }
+        
+        // Second pass: only scan the cells we identified
+        for(const cellKey of cellsToScan) {
+            const [i, j] = cellKey.split(',').map(Number);
+            this.checkLiveNeighbours(i, j);
         }
     }
 
-   initRender(){
+    // Helper method to create a deep copy of the grid state
+    getGridState() {
+        return this.gridArray.map(row => 
+            row.map(cell => cell.isAlive())
+        );
+    }
+
+    tick(){
+        const currentState = this.getGridState();
+        
+        // First scan the grid to get neighbor counts
+        this.scanGrid();
+        
+        // Update cell states based on Conway's rules
+        for(let i =0;i<this.rows;i++){
+            for(let j=0;j<this.columns;j++){
+                let currentCell=this.gridArray[i][j];
+                const neighbors = currentCell.getNeighbours();
+                const isAlive = currentCell.isAlive();
+                
+                if(isAlive) {
+                    // Rule 1 & 3: Die if fewer than 2 or more than 3 neighbors
+                    if(neighbors < 2 || neighbors > 3) {
+                        currentCell.death();
+                        this.cellBuffer.push([i,j,"#FF0000"]); // Red for deaths
+                    } else {
+                        // Rule 2: Survive if 2 or 3 neighbors
+                        this.cellBuffer.push([i,j,"#00FFFF"]); // Neon blue for surviving cells
+                    }
+                } else {
+                    // Rule 4: Birth if exactly 3 neighbors
+                    if(neighbors === 3) {
+                        currentCell.birth();
+                        this.cellBuffer.push([i,j,"#32CD32"]); // Lime green for births
+                    }
+                }
+            }
+        }
+
+        this.previousState = currentState;
+    }
+
+    initRender(){
+        // Clear to black
+        c.fillStyle = "black";
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        
         for(let i =0;i<this.rows;i++){
             for(let j=0;j<this.columns;j++){
                 let currentCell=this.gridArray[i][j];
                 if(!currentCell.alive) {
-                    this.paintCell(i,j,"white");
+                    this.paintCell(i,j,"black");
                 }else{
-                    this.paintCell(i,j,"green");
+                    this.paintCell(i,j,"#00FFFF"); // Neon blue for initial cells
                 }
-                       
-             }
+            }
         }
     }
 
     render(){
-        console.log(this.whiteCellBuffer);
-        for(let i of this.whiteCellBuffer){
-            this.paintCell(i[0],i[1],"white");
+        for(let i =0;i<this.rows;i++){
+            for(let j=0;j<this.columns;j++){
+                let currentCell=this.gridArray[i][j];
+                if(!currentCell.isAlive()) {
+                    this.paintCell(i,j,"black");
+                }
+            }
         }
-        for(let j of this.greenCellBuffer){
-            this.paintCell(j[0],j[1],"green");
+        for(let cell of this.cellBuffer){
+            this.paintCell(cell[0],cell[1],cell[2]);
         }
-        this.whiteCellBuffer=[];
-        this.greenCellBuffer=[];
+        this.cellBuffer=[];
     }
 
     simulate(){
@@ -198,31 +249,95 @@ console.log()
 world.populate();
 world.initRender();
 
-function animate(){
-    setTimeout(function(){
+let isRunning = false;
 
-        requestAnimationFrame(animate);
-        world.simulate();
+// Create and display the instruction prompt
+const promptDiv = document.createElement('div');
+promptDiv.style.position = 'fixed';
+promptDiv.style.top = '20px';
+promptDiv.style.left = '50%';
+promptDiv.style.transform = 'translateX(-50%)';
+promptDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+promptDiv.style.color = '#32CD32';
+promptDiv.style.padding = '15px';
+promptDiv.style.borderRadius = '5px';
+promptDiv.style.fontFamily = 'Arial, sans-serif';
+promptDiv.style.fontSize = '18px';
+promptDiv.style.textAlign = 'center';
+promptDiv.style.zIndex = '1000';
+promptDiv.innerHTML = 'Click on cells to activate them<br>Press SPACE to start/stop the simulation';
+document.body.appendChild(promptDiv);
 
-},100);
+// Function to remove the prompt with fade out
+function removePrompt() {
+    promptDiv.style.transition = 'opacity 1s';
+    promptDiv.style.opacity = '0';
+    setTimeout(() => {
+        document.body.removeChild(promptDiv);
+    }, 1000);
 }
-//animate();
-addEventListener('keydown', event => {
- animate();
-    })
 
+// Add keydown handler to remove prompt when space is pressed
+addEventListener('keydown', function(event) {
+    if (event.code === 'Space') {
+        if (!isRunning) { // Only remove on first space press
+            removePrompt();
+        }
+        isRunning = !isRunning;
+        if (isRunning) {
+            animate();
+        }
+    }
+});
 
+function animate(){
+    if (isRunning) {
+        setTimeout(function(){
+            requestAnimationFrame(animate);
+            world.simulate();
+        }, 100);
+    }
+}
 
 const mouse = {
     x: undefined,
-    y: undefined
+    y: undefined,
+    isDown: false
 }
+
 // Event Listeners
 addEventListener('mousemove', event => {
     mouse.x = Math.floor(event.clientX/world.blockWidth);
     mouse.y = Math.floor(event.clientY/world.blockHeight);
-    console.log(mouse.x+" "+mouse.y);
-    world.gridArray[mouse.x][mouse.y].birth();
-    world.paintCell(mouse.x,mouse.y,"green");
-  //  world.activateCell(mouse.x,mouse.y);
+    if (mouse.isDown && world.gridArray[mouse.x] && world.gridArray[mouse.x][mouse.y]) {
+        world.gridArray[mouse.x][mouse.y].birth();
+        world.paintCell(mouse.x, mouse.y, "#32CD32"); // Lime green for clicked cells
+    }
+})
+
+addEventListener('mousedown', event => {
+    mouse.isDown = true;
+    mouse.x = Math.floor(event.clientX/world.blockWidth);
+    mouse.y = Math.floor(event.clientY/world.blockHeight);
+    if (world.gridArray[mouse.x] && world.gridArray[mouse.x][mouse.y]) {
+        world.gridArray[mouse.x][mouse.y].birth();
+        world.paintCell(mouse.x, mouse.y, "#32CD32"); // Lime green for clicked cells
+    }
+})
+
+addEventListener('mouseup', () => {
+    mouse.isDown = false;
+})
+
+addEventListener('mouseleave', () => {
+    mouse.isDown = false;
+})
+
+addEventListener('click', event => {
+    mouse.x = Math.floor(event.clientX/world.blockWidth);
+    mouse.y = Math.floor(event.clientY/world.blockHeight);
+    if (world.gridArray[mouse.x] && world.gridArray[mouse.x][mouse.y]) {
+        world.gridArray[mouse.x][mouse.y].birth();
+        world.paintCell(mouse.x, mouse.y, "#32CD32"); // Lime green for clicked cells
+    }
 })
