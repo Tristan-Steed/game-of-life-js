@@ -2,6 +2,14 @@
 const canvas=document.querySelector('canvas');
 const c=canvas.getContext('2d');
 
+// Color constants
+const COLORS = {
+    LIVE: "BLUE",    // Yellow for live cells
+    BIRTH: "#32CD32",   // Lime green for new births
+    DEATH: "#FF0000",   // Red for deaths
+    DEAD: "#000000"     // Black for dead cells
+};
+
 canvas.width=window.innerWidth;
 canvas.height=window.innerHeight;
 
@@ -185,16 +193,16 @@ class World{
                     // Rule 1 & 3: Die if fewer than 2 or more than 3 neighbors
                     if(neighbors < 2 || neighbors > 3) {
                         currentCell.death();
-                        this.cellBuffer.push([i,j,"#FF0000"]); // Red for deaths
+                        this.cellBuffer.push([i,j,COLORS.DEATH]); // Red for deaths
                     } else {
                         // Rule 2: Survive if 2 or 3 neighbors
-                        this.cellBuffer.push([i,j,"#00FFFF"]); // Neon blue for surviving cells
+                        this.cellBuffer.push([i,j,COLORS.LIVE]); // Yellow for surviving cells
                     }
                 } else {
                     // Rule 4: Birth if exactly 3 neighbors
                     if(neighbors === 3) {
                         currentCell.birth();
-                        this.cellBuffer.push([i,j,"#32CD32"]); // Lime green for births
+                        this.cellBuffer.push([i,j,COLORS.BIRTH]); // Lime green for births
                     }
                 }
             }
@@ -205,16 +213,16 @@ class World{
 
     initRender(){
         // Clear to black
-        c.fillStyle = "black";
+        c.fillStyle = COLORS.DEAD;
         c.fillRect(0, 0, canvas.width, canvas.height);
         
         for(let i =0;i<this.rows;i++){
             for(let j=0;j<this.columns;j++){
                 let currentCell=this.gridArray[i][j];
                 if(!currentCell.alive) {
-                    this.paintCell(i,j,"black");
+                    this.paintCell(i,j,COLORS.DEAD);
                 }else{
-                    this.paintCell(i,j,"#00FFFF"); // Neon blue for initial cells
+                    this.paintCell(i,j,COLORS.LIVE); // Yellow for initial cells
                 }
             }
         }
@@ -225,7 +233,7 @@ class World{
             for(let j=0;j<this.columns;j++){
                 let currentCell=this.gridArray[i][j];
                 if(!currentCell.isAlive()) {
-                    this.paintCell(i,j,"black");
+                    this.paintCell(i,j,COLORS.DEAD);
                 }
             }
         }
@@ -311,7 +319,7 @@ addEventListener('mousemove', event => {
     mouse.y = Math.floor(event.clientY/world.blockHeight);
     if (mouse.isDown && world.gridArray[mouse.x] && world.gridArray[mouse.x][mouse.y]) {
         world.gridArray[mouse.x][mouse.y].birth();
-        world.paintCell(mouse.x, mouse.y, "#32CD32"); // Lime green for clicked cells
+        world.paintCell(mouse.x, mouse.y, COLORS.BIRTH); // Lime green for clicked cells
     }
 })
 
@@ -321,7 +329,7 @@ addEventListener('mousedown', event => {
     mouse.y = Math.floor(event.clientY/world.blockHeight);
     if (world.gridArray[mouse.x] && world.gridArray[mouse.x][mouse.y]) {
         world.gridArray[mouse.x][mouse.y].birth();
-        world.paintCell(mouse.x, mouse.y, "#32CD32"); // Lime green for clicked cells
+        world.paintCell(mouse.x, mouse.y, COLORS.BIRTH); // Lime green for clicked cells
     }
 })
 
@@ -338,6 +346,6 @@ addEventListener('click', event => {
     mouse.y = Math.floor(event.clientY/world.blockHeight);
     if (world.gridArray[mouse.x] && world.gridArray[mouse.x][mouse.y]) {
         world.gridArray[mouse.x][mouse.y].birth();
-        world.paintCell(mouse.x, mouse.y, "#32CD32"); // Lime green for clicked cells
+        world.paintCell(mouse.x, mouse.y, COLORS.BIRTH); // Lime green for clicked cells
     }
 })
