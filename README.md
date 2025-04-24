@@ -1,4 +1,4 @@
-mplementation Details
+Implementation Details
 	•	Uses a Cell class to manage individual cell states.
 	•	World class handles the grid, neighbor calculations, rendering, and ticking.
 	•	Wraps edges (toroidal array), meaning the grid behaves like a continuous surface.
