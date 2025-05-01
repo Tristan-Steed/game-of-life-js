@@ -4,7 +4,7 @@ This project is an interactive simulation of [Conway's Game of Life](https://en.
 
 ---
 
-## 🚀 Features
+##  Features
 
 - **Canvas-based rendering** for dynamic visual updates.
 - **Color-coded cell states**:
@@ -19,7 +19,7 @@ This project is an interactive simulation of [Conway's Game of Life](https://en.
 
 ---
 
-## 📋 Rules of the Game (Conway's Game of Life)
+##  Rules of the Game (Conway's Game of Life)
 
 1. **Birth**: A dead cell with exactly 3 live neighbors becomes alive.
 2. **Survival**: A live cell with 2 or 3 live neighbors stays alive.
@@ -27,13 +27,10 @@ This project is an interactive simulation of [Conway's Game of Life](https://en.
 
 ---
 
-## 🖱️ How to Use
+##  How to Use
 
 1. **Open `index.html`** in a browser.
 2. **Click** on cells to activate them (turn lime green).
 3. **Press `SPACE`** to start or stop the simulation.
 4. **Watch the animation** as cells evolve over time!
 
----
-
-## 🧱 Project Structure
